@@ -3,6 +3,7 @@ import { db } from "../../db";
 import { candidates } from "../../db/schema";
 
 export const candidateRoutes = new Elysia({ prefix: "/candidates" })
+  // 1. Dapatkan semua data kandidat
   .get(
     "/",
     async () => {
@@ -27,11 +28,21 @@ export const candidateRoutes = new Elysia({ prefix: "/candidates" })
       },
     }
   )
+
+  // 2. Tambah data kandidat baru
   .post(
     "/",
     async ({ body, set }) => {
       try {
-        await db.insert(candidates).values(body);
+        await db.insert(candidates).values({
+          candidateNumber: body.candidate_number,
+          chairmanName: body.chairman_name,
+          viceChairmanName: body.vice_chairman_name,
+          vision: body.vision,
+          mission: body.mission,
+          photoUrl: body.photo_url,
+        });
+
         set.status = 201;
         return {
           success: true,
@@ -48,12 +59,12 @@ export const candidateRoutes = new Elysia({ prefix: "/candidates" })
     },
     {
       body: t.Object({
-        candidateNumber: t.Numeric(),
-        chairmanName: t.String(),
-        viceChairmanName: t.String(),
+        candidate_number: t.Numeric(),
+        chairman_name: t.String(),
+        vice_chairman_name: t.String(),
         vision: t.String(),
         mission: t.String(),
-        photoUrl: t.Optional(t.String()),
+        photo_url: t.Optional(t.String()),
       }),
       detail: {
         tags: ["Candidates"],

@@ -1,7 +1,10 @@
 import { Elysia } from "elysia";
 import { swagger } from "@elysiajs/swagger";
 import { cors } from "@elysiajs/cors";
+import { authRoutes } from "./routes/auth";
 import { candidateRoutes } from "./routes/candidates";
+import { voteRoutes } from "./routes/votes";
+import { systemRoutes } from "./routes/system";
 import "dotenv/config";
 
 const port = process.env.PORT || 3000;
@@ -15,14 +18,14 @@ const app = new Elysia()
       documentation: {
         info: {
           title: "Spensavote V2 API Documentation",
-          description: "API Backend untuk sistem E-Voting Spensavote V2",
+          description: "API Backend untuk sistem E-Voting Spensavote V2 (ElysiaJS + Drizzle + MySQL)",
           version: "1.0.0",
         },
       },
     })
   )
 
-  // Health Check & Welcome Endpoint
+  // Health Check & Root Endpoint
   .get("/", () => ({
     app: "Spensavote V2 Backend",
     status: "online",
@@ -31,7 +34,13 @@ const app = new Elysia()
   .get("/health", () => ({ status: "ok" }))
 
   // Sub-routes API
-  .group("/api", (app) => app.use(candidateRoutes))
+  .group("/api", (app) =>
+    app
+      .use(authRoutes)
+      .use(candidateRoutes)
+      .use(voteRoutes)
+      .use(systemRoutes)
+  )
 
   // Start Server
   .listen(port);
