@@ -9,7 +9,6 @@ export const voteRoutes = new Elysia({ prefix: "/votes" })
     "/",
     async ({ body, set }) => {
       try {
-        // Cek apakah user_id valid
         const userExists = await db
           .select()
           .from(users)
@@ -23,7 +22,6 @@ export const voteRoutes = new Elysia({ prefix: "/votes" })
           };
         }
 
-        // Cek apakah candidate_id valid
         const candidateExists = await db
           .select()
           .from(candidates)
@@ -37,7 +35,6 @@ export const voteRoutes = new Elysia({ prefix: "/votes" })
           };
         }
 
-        // Validasi Bisnis: Cek apakah user sudah pernah vote
         const existingVote = await db
           .select()
           .from(votes)
@@ -51,7 +48,6 @@ export const voteRoutes = new Elysia({ prefix: "/votes" })
           };
         }
 
-        // Masukkan data voting
         await db.insert(votes).values({
           userId: body.user_id,
           candidateId: body.candidate_id,
@@ -72,18 +68,83 @@ export const voteRoutes = new Elysia({ prefix: "/votes" })
       }
     },
     {
-      body: t.Object({
-        user_id: t.Numeric(),
-        candidate_id: t.Numeric(),
-      }),
+      body: t.Object(
+        {
+          user_id: t.Numeric({
+            description: "ID Pemilih (User)",
+            examples: [1],
+          }),
+          candidate_id: t.Numeric({
+            description: "ID Pasangan Calon yang dipilih",
+            examples: [1],
+          }),
+        },
+        {
+          description: "Payload submit surat suara voting",
+          examples: [
+            {
+              user_id: 1,
+              candidate_id: 1,
+            },
+          ],
+        }
+      ),
+      response: {
+        201: t.Object(
+          {
+            success: t.Boolean(),
+            message: t.String(),
+          },
+          {
+            description: "Voting berhasil tercatat",
+            examples: [
+              {
+                success: true,
+                message: "Voting berhasil dilakukan",
+              },
+            ],
+          }
+        ),
+        400: t.Object(
+          {
+            success: t.Boolean(),
+            message: t.String(),
+          },
+          {
+            description: "Voter sudah pernah memilih sebelumnya",
+            examples: [
+              {
+                success: false,
+                message: "Voter hanya bisa vote sekali",
+              },
+            ],
+          }
+        ),
+        404: t.Object(
+          {
+            success: t.Boolean(),
+            message: t.String(),
+          },
+          {
+            description: "User atau Kandidat tidak ditemukan",
+            examples: [
+              {
+                success: false,
+                message: "User tidak ditemukan",
+              },
+            ],
+          }
+        ),
+      },
       detail: {
         tags: ["Votes"],
-        summary: "Kirim suara voting (voter hanya bisa vote sekali)",
+        summary: "Kirim suara voting",
+        description: "Mengirimkan pilihan kandidat. Setiap akun voter hanya dibatasi 1x voting.",
       },
     }
   )
 
-  // 2. Endpoint Vote Count (Hitung perolehan suara tiap kandidat)
+  // 2. Endpoint Vote Count
   .get(
     "/count",
     async () => {
@@ -114,9 +175,53 @@ export const voteRoutes = new Elysia({ prefix: "/votes" })
       }
     },
     {
+      response: {
+        200: t.Object(
+          {
+            success: t.Boolean(),
+            data: t.Array(
+              t.Object({
+                candidateId: t.Number(),
+                candidateNumber: t.Number(),
+                chairmanName: t.String(),
+                viceChairmanName: t.String(),
+                photoUrl: t.Nullable(t.String()),
+                totalVotes: t.Number(),
+              })
+            ),
+          },
+          {
+            description: "Rekapitulasi total suara per kandidat",
+            examples: [
+              {
+                success: true,
+                data: [
+                  {
+                    candidateId: 1,
+                    candidateNumber: 1,
+                    chairmanName: "Ahmad Rizky Pratama",
+                    viceChairmanName: "Budi Santoso",
+                    photoUrl: "https://example.com/paslon1.jpg",
+                    totalVotes: 145,
+                  },
+                  {
+                    candidateId: 2,
+                    candidateNumber: 2,
+                    chairmanName: "Citra Kirana",
+                    viceChairmanName: "Dedi Setiawan",
+                    photoUrl: "https://example.com/paslon2.jpg",
+                    totalVotes: 98,
+                  },
+                ],
+              },
+            ],
+          }
+        ),
+      },
       detail: {
         tags: ["Votes"],
-        summary: "Dapatkan rekapitulasi jumlah suara setiap kandidat",
+        summary: "Hitung rekapitulasi suara",
+        description: "Melihat perolehan suara real-time tiap kandidat (Quick Count).",
       },
     }
   );
