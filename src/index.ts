@@ -4,6 +4,7 @@ import { cors } from "@elysiajs/cors";
 import { authRoutes } from "./routes/auth";
 import { candidateRoutes } from "./routes/candidates";
 import { voteRoutes } from "./routes/votes";
+import { userRoutes } from "./routes/users";
 import { systemRoutes } from "./routes/system";
 import "dotenv/config";
 
@@ -39,6 +40,7 @@ const app = new Elysia()
       .use(authRoutes)
       .use(candidateRoutes)
       .use(voteRoutes)
+      .use(userRoutes)
       .use(systemRoutes)
   )
 
