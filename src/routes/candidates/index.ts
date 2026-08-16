@@ -1,12 +1,16 @@
 import { Elysia, t } from "elysia";
+import { eq } from "drizzle-orm";
 import { db } from "../../db";
 import { candidates } from "../../db/schema";
+import { authPlugin } from "../../middlewares/auth";
 
 export const candidateRoutes = new Elysia({ prefix: "/candidates" })
-  // 1. Dapatkan semua data kandidat
+  .use(authPlugin)
+
+  // 1. Dapatkan semua data kandidat (Publik)
   .get(
     "/",
-    async () => {
+    async ({ set }) => {
       try {
         const result = await db.select().from(candidates);
         return {
@@ -14,6 +18,7 @@ export const candidateRoutes = new Elysia({ prefix: "/candidates" })
           data: result,
         };
       } catch (error: any) {
+        set.status = 500;
         return {
           success: false,
           message: "Gagal mengambil data kandidat",
@@ -58,6 +63,16 @@ export const candidateRoutes = new Elysia({ prefix: "/candidates" })
             ],
           }
         ),
+        500: t.Object(
+          {
+            success: t.Boolean(),
+            message: t.String(),
+            error: t.Optional(t.String()),
+          },
+          {
+            description: "Gagal mengambil data kandidat",
+          }
+        ),
       },
       detail: {
         tags: ["Candidates"],
@@ -67,11 +82,13 @@ export const candidateRoutes = new Elysia({ prefix: "/candidates" })
     }
   )
 
-  // 2. Tambah data kandidat baru
+  // 2. Tambah data kandidat baru (Khusus Admin)
   .post(
     "/",
-    async ({ body, set }) => {
+    async ({ body, requireAdmin, set }) => {
       try {
+        await requireAdmin();
+
         await db.insert(candidates).values({
           candidateNumber: body.candidate_number,
           chairmanName: body.chairman_name,
@@ -87,6 +104,21 @@ export const candidateRoutes = new Elysia({ prefix: "/candidates" })
           message: "Kandidat berhasil ditambahkan",
         };
       } catch (error: any) {
+        if (error?.message?.includes("Akses ditolak")) {
+          set.status = 403;
+          return {
+            success: false,
+            message: error.message,
+          };
+        }
+        if (error?.message?.includes("Token otentikasi")) {
+          set.status = 401;
+          return {
+            success: false,
+            message: error.message,
+          };
+        }
+
         set.status = 500;
         return {
           success: false,
@@ -155,11 +187,488 @@ export const candidateRoutes = new Elysia({ prefix: "/candidates" })
             ],
           }
         ),
+        401: t.Object(
+          {
+            success: t.Boolean(),
+            message: t.String(),
+          },
+          {
+            description: "Tidak terautentikasi",
+          }
+        ),
+        403: t.Object(
+          {
+            success: t.Boolean(),
+            message: t.String(),
+          },
+          {
+            description: "Akses ditolak untuk selain role admin",
+          }
+        ),
+        500: t.Object(
+          {
+            success: t.Boolean(),
+            message: t.String(),
+            error: t.Optional(t.String()),
+          },
+          {
+            description: "Terjadi kesalahan pada server",
+          }
+        ),
       },
       detail: {
         tags: ["Candidates"],
-        summary: "Tambah kandidat baru",
-        description: "Menambahkan pasangan calon ketua & wakil ketua baru.",
+        summary: "Tambah kandidat baru (Admin)",
+        description: "Menambahkan pasangan calon ketua & wakil ketua baru. Memerlukan token Bearer dengan role Admin.",
+      },
+    }
+  )
+
+  // 3. Update Data Kandidat (PUT & PATCH - Khusus Admin)
+  .put(
+    "/:id",
+    async ({ params, body, requireAdmin, set }) => {
+      try {
+        await requireAdmin();
+
+        const candidateId = Number(params.id);
+        const existing = await db
+          .select()
+          .from(candidates)
+          .where(eq(candidates.id, candidateId));
+
+        if (existing.length === 0) {
+          set.status = 404;
+          return {
+            success: false,
+            message: "Kandidat tidak ditemukan",
+          };
+        }
+
+        const updateData: Partial<typeof candidates.$inferInsert> = {};
+        if (body.candidate_number !== undefined) updateData.candidateNumber = body.candidate_number;
+        if (body.chairman_name !== undefined) updateData.chairmanName = body.chairman_name;
+        if (body.vice_chairman_name !== undefined) updateData.viceChairmanName = body.vice_chairman_name;
+        if (body.vision !== undefined) updateData.vision = body.vision;
+        if (body.mission !== undefined) updateData.mission = body.mission;
+        if (body.photo_url !== undefined) updateData.photoUrl = body.photo_url;
+
+        await db
+          .update(candidates)
+          .set(updateData)
+          .where(eq(candidates.id, candidateId));
+
+        return {
+          success: true,
+          message: "Data kandidat berhasil diperbarui",
+        };
+      } catch (error: any) {
+        if (error?.message?.includes("Akses ditolak")) {
+          set.status = 403;
+          return {
+            success: false,
+            message: error.message,
+          };
+        }
+        if (error?.message?.includes("Token otentikasi")) {
+          set.status = 401;
+          return {
+            success: false,
+            message: error.message,
+          };
+        }
+
+        set.status = 500;
+        return {
+          success: false,
+          message: "Gagal memperbarui data kandidat",
+          error: error?.message,
+        };
+      }
+    },
+    {
+      params: t.Object({
+        id: t.Numeric({
+          description: "ID Kandidat yang akan diubah",
+          examples: [1],
+        }),
+      }),
+      body: t.Object(
+        {
+          candidate_number: t.Optional(
+            t.Numeric({
+              description: "Nomor urut paslon baru",
+              examples: [1],
+            })
+          ),
+          chairman_name: t.Optional(
+            t.String({
+              description: "Nama calon ketua baru",
+              examples: ["Ahmad Rizky Pratama"],
+            })
+          ),
+          vice_chairman_name: t.Optional(
+            t.String({
+              description: "Nama calon wakil ketua baru",
+              examples: ["Budi Santoso"],
+            })
+          ),
+          vision: t.Optional(
+            t.String({
+              description: "Visi baru",
+              examples: ["Mewujudkan OSIS yang aktif dan berprestasi"],
+            })
+          ),
+          mission: t.Optional(
+            t.String({
+              description: "Misi baru",
+              examples: ["1. Menyelenggarakan kegiatan ekstrakurikuler berprestasi"],
+            })
+          ),
+          photo_url: t.Optional(
+            t.String({
+              description: "URL foto paslon baru",
+              examples: ["https://example.com/paslon1-new.jpg"],
+            })
+          ),
+        },
+        {
+          description: "Payload update data kandidat",
+        }
+      ),
+      response: {
+        200: t.Object(
+          {
+            success: t.Boolean(),
+            message: t.String(),
+          },
+          {
+            description: "Data kandidat berhasil diperbarui",
+          }
+        ),
+        401: t.Object(
+          {
+            success: t.Boolean(),
+            message: t.String(),
+          },
+          {
+            description: "Tidak terautentikasi",
+          }
+        ),
+        403: t.Object(
+          {
+            success: t.Boolean(),
+            message: t.String(),
+          },
+          {
+            description: "Akses ditolak untuk selain role admin",
+          }
+        ),
+        404: t.Object(
+          {
+            success: t.Boolean(),
+            message: t.String(),
+          },
+          {
+            description: "Kandidat tidak ditemukan",
+          }
+        ),
+        500: t.Object(
+          {
+            success: t.Boolean(),
+            message: t.String(),
+            error: t.Optional(t.String()),
+          },
+          {
+            description: "Terjadi kesalahan pada server",
+          }
+        ),
+      },
+      detail: {
+        tags: ["Candidates"],
+        summary: "Update data kandidat (PUT - Admin)",
+        description: "Memperbarui informasi kandidat berdasarkan ID. Memerlukan token Bearer dengan role Admin.",
+      },
+    }
+  )
+  .patch(
+    "/:id",
+    async ({ params, body, requireAdmin, set }) => {
+      try {
+        await requireAdmin();
+
+        const candidateId = Number(params.id);
+        const existing = await db
+          .select()
+          .from(candidates)
+          .where(eq(candidates.id, candidateId));
+
+        if (existing.length === 0) {
+          set.status = 404;
+          return {
+            success: false,
+            message: "Kandidat tidak ditemukan",
+          };
+        }
+
+        const updateData: Partial<typeof candidates.$inferInsert> = {};
+        if (body.candidate_number !== undefined) updateData.candidateNumber = body.candidate_number;
+        if (body.chairman_name !== undefined) updateData.chairmanName = body.chairman_name;
+        if (body.vice_chairman_name !== undefined) updateData.viceChairmanName = body.vice_chairman_name;
+        if (body.vision !== undefined) updateData.vision = body.vision;
+        if (body.mission !== undefined) updateData.mission = body.mission;
+        if (body.photo_url !== undefined) updateData.photoUrl = body.photo_url;
+
+        await db
+          .update(candidates)
+          .set(updateData)
+          .where(eq(candidates.id, candidateId));
+
+        return {
+          success: true,
+          message: "Data kandidat berhasil diperbarui",
+        };
+      } catch (error: any) {
+        if (error?.message?.includes("Akses ditolak")) {
+          set.status = 403;
+          return {
+            success: false,
+            message: error.message,
+          };
+        }
+        if (error?.message?.includes("Token otentikasi")) {
+          set.status = 401;
+          return {
+            success: false,
+            message: error.message,
+          };
+        }
+
+        set.status = 500;
+        return {
+          success: false,
+          message: "Gagal memperbarui data kandidat",
+          error: error?.message,
+        };
+      }
+    },
+    {
+      params: t.Object({
+        id: t.Numeric({
+          description: "ID Kandidat yang akan diubah",
+          examples: [1],
+        }),
+      }),
+      body: t.Object(
+        {
+          candidate_number: t.Optional(
+            t.Numeric({
+              description: "Nomor urut paslon baru",
+              examples: [1],
+            })
+          ),
+          chairman_name: t.Optional(
+            t.String({
+              description: "Nama calon ketua baru",
+              examples: ["Ahmad Rizky Pratama"],
+            })
+          ),
+          vice_chairman_name: t.Optional(
+            t.String({
+              description: "Nama calon wakil ketua baru",
+              examples: ["Budi Santoso"],
+            })
+          ),
+          vision: t.Optional(
+            t.String({
+              description: "Visi baru",
+              examples: ["Mewujudkan OSIS yang aktif dan berprestasi"],
+            })
+          ),
+          mission: t.Optional(
+            t.String({
+              description: "Misi baru",
+              examples: ["1. Menyelenggarakan kegiatan ekstrakurikuler berprestasi"],
+            })
+          ),
+          photo_url: t.Optional(
+            t.String({
+              description: "URL foto paslon baru",
+              examples: ["https://example.com/paslon1-new.jpg"],
+            })
+          ),
+        },
+        {
+          description: "Payload update data kandidat secara parsial",
+        }
+      ),
+      response: {
+        200: t.Object(
+          {
+            success: t.Boolean(),
+            message: t.String(),
+          },
+          {
+            description: "Data kandidat berhasil diperbarui",
+          }
+        ),
+        401: t.Object(
+          {
+            success: t.Boolean(),
+            message: t.String(),
+          },
+          {
+            description: "Tidak terautentikasi",
+          }
+        ),
+        403: t.Object(
+          {
+            success: t.Boolean(),
+            message: t.String(),
+          },
+          {
+            description: "Akses ditolak untuk selain role admin",
+          }
+        ),
+        404: t.Object(
+          {
+            success: t.Boolean(),
+            message: t.String(),
+          },
+          {
+            description: "Kandidat tidak ditemukan",
+          }
+        ),
+        500: t.Object(
+          {
+            success: t.Boolean(),
+            message: t.String(),
+            error: t.Optional(t.String()),
+          },
+          {
+            description: "Terjadi kesalahan pada server",
+          }
+        ),
+      },
+      detail: {
+        tags: ["Candidates"],
+        summary: "Update data kandidat (PATCH - Admin)",
+        description: "Memperbarui informasi kandidat berdasarkan ID secara parsial. Memerlukan token Bearer dengan role Admin.",
+      },
+    }
+  )
+
+  // 4. Hapus Data Kandidat (Khusus Admin)
+  .delete(
+    "/:id",
+    async ({ params, requireAdmin, set }) => {
+      try {
+        await requireAdmin();
+
+        const candidateId = Number(params.id);
+        const existing = await db
+          .select()
+          .from(candidates)
+          .where(eq(candidates.id, candidateId));
+
+        if (existing.length === 0) {
+          set.status = 404;
+          return {
+            success: false,
+            message: "Kandidat tidak ditemukan",
+          };
+        }
+
+        await db.delete(candidates).where(eq(candidates.id, candidateId));
+
+        return {
+          success: true,
+          message: "Kandidat berhasil dihapus",
+        };
+      } catch (error: any) {
+        if (error?.message?.includes("Akses ditolak")) {
+          set.status = 403;
+          return {
+            success: false,
+            message: error.message,
+          };
+        }
+        if (error?.message?.includes("Token otentikasi")) {
+          set.status = 401;
+          return {
+            success: false,
+            message: error.message,
+          };
+        }
+
+        set.status = 500;
+        return {
+          success: false,
+          message: "Gagal menghapus kandidat",
+          error: error?.message,
+        };
+      }
+    },
+    {
+      params: t.Object({
+        id: t.Numeric({
+          description: "ID Kandidat yang akan dihapus",
+          examples: [1],
+        }),
+      }),
+      response: {
+        200: t.Object(
+          {
+            success: t.Boolean(),
+            message: t.String(),
+          },
+          {
+            description: "Kandidat berhasil dihapus",
+          }
+        ),
+        401: t.Object(
+          {
+            success: t.Boolean(),
+            message: t.String(),
+          },
+          {
+            description: "Tidak terautentikasi",
+          }
+        ),
+        403: t.Object(
+          {
+            success: t.Boolean(),
+            message: t.String(),
+          },
+          {
+            description: "Akses ditolak untuk selain role admin",
+          }
+        ),
+        404: t.Object(
+          {
+            success: t.Boolean(),
+            message: t.String(),
+          },
+          {
+            description: "Kandidat tidak ditemukan",
+          }
+        ),
+        500: t.Object(
+          {
+            success: t.Boolean(),
+            message: t.String(),
+            error: t.Optional(t.String()),
+          },
+          {
+            description: "Terjadi kesalahan pada server",
+          }
+        ),
+      },
+      detail: {
+        tags: ["Candidates"],
+        summary: "Hapus data kandidat (Admin)",
+        description: "Menghapus data pasangan calon kandidat berdasarkan ID. Memerlukan token Bearer dengan role Admin.",
       },
     }
   );
+
