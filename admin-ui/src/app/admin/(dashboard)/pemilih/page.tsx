@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import * as XLSX from "xlsx";
 
 interface User {
   id: number;
@@ -70,18 +71,89 @@ export default function PemilihPage() {
     setIsBulkModalOpen(true);
   };
 
-  const handleCsvFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const downloadExcelTemplate = () => {
+    const data = [
+      { username: "siswa_7a_01", password: "password123", role: "voters" },
+      { username: "siswa_7a_02", password: "password123", role: "voters" },
+      { username: "siswa_7a_03", password: "password123", role: "voters" },
+      { username: "siswa_7b_01", password: "", role: "voters" },
+      { username: "siswa_7b_02", password: "", role: "voters" },
+    ];
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Daftar Pemilih");
+    XLSX.writeFile(workbook, "template_import_pemilih_spensavote.xlsx");
+  };
+
+  const downloadCsvTemplate = () => {
+    const csvContent = "username,password,role\nsiswa_7a_01,pass123,voters\nsiswa_7a_02,pass123,voters\nsiswa_7a_03,pass123,voters\nsiswa_7b_01,,voters\nsiswa_7b_02,,voters\n";
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "template_import_pemilih_spensavote.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleSpreadsheetFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
-      if (content) {
-        setBulkInput(content);
-      }
-    };
-    reader.readAsText(file);
+    const fileExt = file.name.split(".").pop()?.toLowerCase();
+
+    if (fileExt === "xlsx" || fileExt === "xls") {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const data = new Uint8Array(event.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: "array" });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          
+          // Konversi ke format text CSV/baris
+          const rows: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          const textLines: string[] = [];
+
+          for (const row of rows) {
+            if (!row || row.length === 0) continue;
+            // Jika baris header, lewati
+            const col1 = String(row[0] || "").trim();
+            if (col1.toLowerCase() === "username" || col1.toLowerCase() === "nis") continue;
+            
+            const username = col1;
+            const password = row[1] !== undefined ? String(row[1]).trim() : "";
+            const role = row[2] !== undefined ? String(row[2]).trim() : "";
+            
+            if (username) {
+              if (password) {
+                textLines.push(`${username},${password}${role ? `,${role}` : ""}`);
+              } else {
+                textLines.push(username);
+              }
+            }
+          }
+
+          setBulkInput(textLines.join("\n"));
+          setBulkResult(null);
+        } catch {
+          setBulkResult({ message: "Gagal membaca file Excel. Pastikan format file benar.", isError: true });
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      // File CSV atau Plain Text
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const content = event.target?.result as string;
+        if (content) {
+          setBulkInput(content);
+          setBulkResult(null);
+        }
+      };
+      reader.readAsText(file);
+    }
   };
 
   const handleBulkSubmit = async (e: React.FormEvent) => {
@@ -547,25 +619,51 @@ export default function PemilihPage() {
             )}
 
             <form onSubmit={handleBulkSubmit} className="space-y-5">
-              {/* File CSV Upload box */}
+              {/* File Excel / CSV Upload box */}
               <div>
-                <label className="text-xs font-bold text-gray-700 uppercase block mb-1.5">
-                  1. Unggah File CSV (Opsional)
-                </label>
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                  <label className="text-xs font-bold text-gray-700 uppercase">
+                    1. Unggah File Excel / CSV
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={downloadExcelTemplate}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200"
+                      title="Download template format .xlsx"
+                    >
+                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      <span>Template Excel (.xlsx)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={downloadCsvTemplate}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-700 hover:underline cursor-pointer bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100"
+                      title="Download template format .csv"
+                    >
+                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      <span>Template CSV</span>
+                    </button>
+                  </div>
+                </div>
                 <div className="relative border-2 border-dashed border-gray-200 hover:border-indigo-400 bg-gray-50/50 hover:bg-indigo-50/30 rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer transition-colors text-center">
                   <input
                     type="file"
-                    accept=".csv,text/csv,text/plain"
-                    onChange={handleCsvFileUpload}
+                    accept=".xlsx,.xls,.csv,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                    onChange={handleSpreadsheetFileUpload}
                     className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                   />
-                  <div className="h-10 w-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-1">
+                  <div className="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-1">
                     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                   </div>
-                  <p className="text-xs font-bold text-gray-700">Pilih atau Seret File .CSV di sini</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">Format: username,password (atau cukup daftar username per baris)</p>
+                  <p className="text-xs font-bold text-gray-700">Pilih atau Seret File Excel (.xlsx / .xls) / CSV di sini</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">Kolom: username | password | role</p>
                 </div>
               </div>
 
