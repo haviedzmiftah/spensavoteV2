@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, getMediaUrl } from "@/lib/api";
 
 interface Candidate {
   id: number;
@@ -202,7 +202,7 @@ export default function InfoSection() {
                   {cand.photoUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={cand.photoUrl}
+                      src={getMediaUrl(cand.photoUrl)}
                       alt={`${cand.chairmanName} & ${cand.viceChairmanName}`}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />

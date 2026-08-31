@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { apiFetch } from "@/lib/api";
+import { useEffect, useRef, useState } from "react";
+import { apiFetch, getMediaUrl } from "@/lib/api";
 
 interface Candidate {
   id: number;
@@ -29,8 +29,12 @@ export default function KandidatPage() {
     mission: "",
     photo_url: "",
   });
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string>("");
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadCandidates = async () => {
     setLoading(true);
@@ -57,6 +61,8 @@ export default function KandidatPage() {
       mission: "",
       photo_url: "",
     });
+    setPhotoFile(null);
+    setPhotoPreview("");
     setErrorMsg("");
     setIsModalOpen(true);
   };
@@ -71,8 +77,36 @@ export default function KandidatPage() {
       mission: candidate.mission,
       photo_url: candidate.photoUrl || "",
     });
+    setPhotoFile(null);
+    setPhotoPreview(candidate.photoUrl ? getMediaUrl(candidate.photoUrl) : "");
     setErrorMsg("");
     setIsModalOpen(true);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith("image/")) {
+        setErrorMsg("Format file harus berupa gambar (JPG, PNG, WEBP, dll)");
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setErrorMsg("Ukuran file maksimal 5MB");
+        return;
+      }
+      setPhotoFile(file);
+      setPhotoPreview(URL.createObjectURL(file));
+      setErrorMsg("");
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    setPhotoFile(null);
+    setPhotoPreview("");
+    setFormData({ ...formData, photo_url: "" });
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -80,13 +114,36 @@ export default function KandidatPage() {
     setSubmitting(true);
     setErrorMsg("");
 
+    let uploadedUrl = formData.photo_url;
+
+    // Jika user memilih file baru, upload foto terlebih dahulu
+    if (photoFile) {
+      setIsUploadingPhoto(true);
+      const photoFormData = new FormData();
+      photoFormData.append("file", photoFile);
+
+      const uploadRes = await apiFetch<{ photoUrl: string }>("/candidates/upload", {
+        method: "POST",
+        body: photoFormData,
+      });
+
+      setIsUploadingPhoto(false);
+
+      if (!uploadRes.success || !uploadRes.photoUrl) {
+        setErrorMsg(uploadRes.message || "Gagal mengunggah foto paslon");
+        setSubmitting(false);
+        return;
+      }
+      uploadedUrl = uploadRes.photoUrl;
+    }
+
     const payload = {
       candidate_number: Number(formData.candidate_number),
       chairman_name: formData.chairman_name,
       vice_chairman_name: formData.vice_chairman_name,
       vision: formData.vision,
       mission: formData.mission,
-      photo_url: formData.photo_url || undefined,
+      photo_url: uploadedUrl || undefined,
     };
 
     let res;
@@ -214,9 +271,23 @@ export default function KandidatPage() {
                   <tr key={kandidat.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="whitespace-nowrap py-5 pl-6 pr-3">
                       <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 flex-shrink-0 rounded-2xl bg-gradient-to-tr from-indigo-100 to-purple-100 border border-indigo-50 flex items-center justify-center font-bold text-indigo-600 text-lg">
-                          0{kandidat.candidateNumber}
-                        </div>
+                        {kandidat.photoUrl ? (
+                          <div className="h-14 w-14 flex-shrink-0 rounded-2xl overflow-hidden border border-gray-200 bg-slate-100 shadow-xs relative">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={getMediaUrl(kandidat.photoUrl)}
+                              alt={`${kandidat.chairmanName} & ${kandidat.viceChairmanName}`}
+                              className="h-full w-full object-cover object-top"
+                              onError={(e) => {
+                                (e.target as HTMLElement).style.display = "none";
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="h-14 w-14 flex-shrink-0 rounded-2xl bg-gradient-to-tr from-indigo-100 to-purple-100 border border-indigo-50 flex items-center justify-center font-bold text-indigo-600 text-lg">
+                            0{kandidat.candidateNumber}
+                          </div>
+                        )}
                         <div>
                           <div className="font-bold text-gray-900">{kandidat.chairmanName} & {kandidat.viceChairmanName}</div>
                           <div className="text-sm font-medium text-gray-500 mt-0.5">Calon Ketua & Wakil Ketua</div>
@@ -294,6 +365,59 @@ export default function KandidatPage() {
                 />
               </div>
 
+              {/* Photo Upload Area */}
+              <div>
+                <label className="text-xs font-bold text-gray-700 uppercase block mb-1.5">Foto Paslon</label>
+                
+                {photoPreview ? (
+                  <div className="relative group rounded-2xl overflow-hidden border border-gray-200 bg-slate-50 w-full h-48 flex items-center justify-center mb-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={photoPreview}
+                      alt="Preview Foto Paslon"
+                      className="w-full h-full object-cover object-top"
+                    />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-3.5 py-2 rounded-xl bg-white text-gray-800 text-xs font-bold shadow-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                      >
+                        Ganti Foto
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleRemovePhoto}
+                        className="px-3.5 py-2 rounded-xl bg-red-600 text-white text-xs font-bold shadow-lg hover:bg-red-500 transition-colors cursor-pointer"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="border-2 border-dashed border-gray-200 hover:border-indigo-400 bg-gray-50/50 hover:bg-indigo-50/30 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer transition-all duration-200 group"
+                  >
+                    <div className="h-12 w-12 rounded-2xl bg-indigo-50 group-hover:bg-indigo-100 text-indigo-600 flex items-center justify-center mb-2 transition-colors">
+                      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <p className="text-xs font-bold text-gray-700">Klik untuk upload foto paslon</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">Mendukung JPG, PNG, WEBP (Maksimal 5MB)</p>
+                  </div>
+                )}
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/jpg"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+              </div>
+
               <div>
                 <label className="text-xs font-bold text-gray-700 uppercase">Nama Calon Ketua</label>
                 <input
@@ -352,10 +476,10 @@ export default function KandidatPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={submitting}
+                  disabled={submitting || isUploadingPhoto}
                   className="px-5 py-3 rounded-2xl bg-indigo-600 text-sm font-bold text-white hover:bg-indigo-500 transition-colors disabled:opacity-50 cursor-pointer"
                 >
-                  {submitting ? "Menyimpan..." : "Simpan Kandidat"}
+                  {isUploadingPhoto ? "Mengunggah Foto..." : submitting ? "Menyimpan..." : "Simpan Kandidat"}
                 </button>
               </div>
             </form>

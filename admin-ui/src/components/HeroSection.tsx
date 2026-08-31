@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, getMediaUrl } from "@/lib/api";
 
 interface Candidate {
   id: number;
@@ -179,7 +179,7 @@ export default function HeroSection() {
                 {activeCandidate.photoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={activeCandidate.photoUrl}
+                    src={getMediaUrl(activeCandidate.photoUrl)}
                     alt={`${activeCandidate.chairmanName} & ${activeCandidate.viceChairmanName}`}
                     className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                   />

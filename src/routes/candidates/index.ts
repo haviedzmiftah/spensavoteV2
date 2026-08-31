@@ -3,6 +3,8 @@ import { eq } from "drizzle-orm";
 import { db } from "../../db";
 import { candidates } from "../../db/schema";
 import { authPlugin } from "../../middlewares/auth";
+import path from "path";
+import fs from "fs";
 
 export const candidateRoutes = new Elysia({ prefix: "/candidates" })
   .use(authPlugin)
@@ -82,7 +84,89 @@ export const candidateRoutes = new Elysia({ prefix: "/candidates" })
     }
   )
 
-  // 2. Tambah data kandidat baru (Khusus Admin)
+  // 2. Upload Foto Paslon (Khusus Admin)
+  .post(
+    "/upload",
+    async ({ body, requireAdmin, set }) => {
+      try {
+        await requireAdmin();
+
+        const file = body.file;
+        if (!file || !(file instanceof Blob || file instanceof File)) {
+          set.status = 400;
+          return {
+            success: false,
+            message: "File gambar tidak ditemukan atau format tidak valid",
+          };
+        }
+
+        const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/jpg", "image/gif"];
+        if (!allowedTypes.includes(file.type)) {
+          set.status = 400;
+          return {
+            success: false,
+            message: "Format file tidak didukung. Gunakan JPG, PNG, WEBP, atau GIF.",
+          };
+        }
+
+        const uploadDir = path.join(process.cwd(), "public", "uploads", "candidates");
+        if (!fs.existsSync(uploadDir)) {
+          fs.mkdirSync(uploadDir, { recursive: true });
+        }
+
+        const ext = file.name ? path.extname(file.name) || ".jpg" : ".jpg";
+        const filename = `paslon-${Date.now()}-${Math.random().toString(36).substring(2, 8)}${ext}`;
+        const filePath = path.join(uploadDir, filename);
+
+        const arrayBuffer = await file.arrayBuffer();
+        await Bun.write(filePath, arrayBuffer);
+
+        const photoUrl = `/uploads/candidates/${filename}`;
+
+        return {
+          success: true,
+          message: "Foto berhasil diunggah",
+          photoUrl: photoUrl,
+        };
+      } catch (error: any) {
+        if (error?.message?.includes("Akses ditolak")) {
+          set.status = 403;
+          return {
+            success: false,
+            message: error.message,
+          };
+        }
+        if (error?.message?.includes("Token otentikasi")) {
+          set.status = 401;
+          return {
+            success: false,
+            message: error.message,
+          };
+        }
+
+        set.status = 500;
+        return {
+          success: false,
+          message: "Gagal mengunggah foto",
+          error: error?.message,
+        };
+      }
+    },
+    {
+      body: t.Object({
+        file: t.File({
+          description: "File foto paslon (JPG, PNG, WEBP, GIF)",
+        }),
+      }),
+      detail: {
+        tags: ["Candidates"],
+        summary: "Upload Foto Paslon (Admin)",
+        description: "Mengunggah foto kandidat/paslon. Memerlukan token Bearer Admin.",
+      },
+    }
+  )
+
+  // 3. Tambah data kandidat baru (Khusus Admin)
   .post(
     "/",
     async ({ body, requireAdmin, set }) => {
@@ -671,4 +755,6 @@ export const candidateRoutes = new Elysia({ prefix: "/candidates" })
       },
     }
   );
+
+
 

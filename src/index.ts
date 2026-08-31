@@ -1,6 +1,7 @@
 import { Elysia } from "elysia";
 import { swagger } from "@elysiajs/swagger";
 import { cors } from "@elysiajs/cors";
+import { staticPlugin } from "@elysiajs/static";
 import { authRoutes } from "./routes/auth";
 import { candidateRoutes } from "./routes/candidates";
 import { voteRoutes } from "./routes/votes";
@@ -13,6 +14,12 @@ const port = process.env.PORT || 3000;
 const app = new Elysia()
   // Global Middleware
   .use(cors())
+  .use(
+    staticPlugin({
+      assets: "public/uploads",
+      prefix: "/uploads",
+    })
+  )
   .use(
     swagger({
       path: "/swagger",

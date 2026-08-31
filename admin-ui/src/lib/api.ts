@@ -75,14 +75,25 @@ export interface ApiResponse<T = any> {
   [key: string]: any;
 }
 
+export function getMediaUrl(path: string | null | undefined): string {
+  if (!path) return "";
+  if (path.startsWith("http://") || path.startsWith("https://") || path.startsWith("data:")) {
+    return path;
+  }
+  const backendBase = API_BASE_URL.replace(/\/api$/, "");
+  return `${backendBase}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
 export async function apiFetch<T = any>(
   endpoint: string,
   options: FetchOptions = {}
 ): Promise<ApiResponse<T>> {
   const { requiresAuth = true, authType = "admin", headers = {}, ...restOptions } = options;
 
+  const isFormData = typeof FormData !== "undefined" && restOptions.body instanceof FormData;
+
   const defaultHeaders: Record<string, string> = {
-    "Content-Type": "application/json",
+    ...(isFormData ? {} : { "Content-Type": "application/json" }),
     ...(headers as Record<string, string>),
   };
 
