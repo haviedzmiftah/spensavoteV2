@@ -29,12 +29,16 @@ export default function PemilihPage() {
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [formData, setFormData] = useState({
     username: "",
     password: "",
     role: "voters",
   });
+  const [bulkInput, setBulkInput] = useState("");
+  const [bulkDefaultPassword, setBulkDefaultPassword] = useState("123456");
+  const [bulkResult, setBulkResult] = useState<{ message: string; isError: boolean } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -58,6 +62,86 @@ export default function PemilihPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  const openBulkModal = () => {
+    setBulkInput("");
+    setBulkDefaultPassword("123456");
+    setBulkResult(null);
+    setIsBulkModalOpen(true);
+  };
+
+  const handleCsvFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (content) {
+        setBulkInput(content);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleBulkSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bulkInput.trim()) {
+      setBulkResult({ message: "Mohon masukkan data pemilih atau unggah file CSV", isError: true });
+      return;
+    }
+
+    setSubmitting(true);
+    setBulkResult(null);
+
+    // Parsing baris input (bisa koma, titik koma, spasi, tab, atau format CSV)
+    const lines = bulkInput.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const parsedVoters: Array<{ username: string; password: string; role: "voters" | "admin" }> = [];
+
+    for (const line of lines) {
+      // Lewati header CSV jika ada
+      if (line.toLowerCase().startsWith("username") || line.toLowerCase().startsWith("nis")) {
+        continue;
+      }
+
+      // Pemisah bisa berupa koma, titik koma, atau tab
+      const parts = line.split(/[,;\t]+/).map((p) => p.trim().replace(/^["']|["']$/g, ""));
+      const username = parts[0];
+      const password = parts[1] || bulkDefaultPassword || "123456";
+      const role = (parts[2]?.toLowerCase() === "admin" ? "admin" : "voters") as "voters" | "admin";
+
+      if (username) {
+        parsedVoters.push({
+          username,
+          password,
+          role,
+        });
+      }
+    }
+
+    if (parsedVoters.length === 0) {
+      setBulkResult({ message: "Tidak ada data username pemilih yang valid ditemukan", isError: true });
+      setSubmitting(false);
+      return;
+    }
+
+    const res = await apiFetch("/users/batch", {
+      method: "POST",
+      body: JSON.stringify({ voters: parsedVoters }),
+    });
+
+    setSubmitting(false);
+
+    if (res.success) {
+      setBulkResult({ message: res.message || `Berhasil mengimpor ${parsedVoters.length} akun pemilih!`, isError: false });
+      loadData();
+      setTimeout(() => {
+        setIsBulkModalOpen(false);
+      }, 1800);
+    } else {
+      setBulkResult({ message: res.message || "Gagal mengimpor data pemilih", isError: true });
+    }
+  };
 
   const openAddModal = () => {
     setEditingUser(null);
@@ -162,7 +246,16 @@ export default function PemilihPage() {
           <h2 className="text-2xl font-black text-gray-800 tracking-tight">Manajemen Pemilih</h2>
           <p className="text-sm font-medium text-gray-500 mt-1">Kelola data daftar pemilih tetap (DPT) & Pengguna</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={openBulkModal}
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white border border-gray-200 px-5 py-3 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50 hover:border-gray-300 transition-all active:scale-[0.98] cursor-pointer"
+          >
+            <svg className="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+            Import Pemilih Masal (CSV)
+          </button>
           <button
             onClick={openAddModal}
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-200 hover:bg-indigo-500 hover:shadow-indigo-300 transition-all active:scale-[0.98] cursor-pointer"
@@ -421,6 +514,123 @@ export default function PemilihPage() {
           </div>
         </div>
       )}
+
+      {/* Modal Import Masal / Batch Upload */}
+      {isBulkModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-8 max-w-xl w-full shadow-2xl border border-gray-100 max-h-[90vh] overflow-y-auto space-y-6">
+            <div className="flex justify-between items-start border-b border-gray-100 pb-4">
+              <div>
+                <h3 className="text-xl font-black text-gray-800">
+                  Import Akun Pemilih Masal
+                </h3>
+                <p className="text-xs text-gray-500 font-medium mt-0.5">
+                  Tambahkan ratusan akun pemilih sekaligus melalui file CSV atau tempel teks langsung.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsBulkModalOpen(false)}
+                className="p-2 rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {bulkResult && (
+              <div
+                className={`p-4 rounded-2xl text-sm font-semibold flex items-center gap-3 ${
+                  bulkResult.isError ? "bg-red-50 text-red-600 border border-red-200" : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                }`}
+              >
+                <span>{bulkResult.message}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleBulkSubmit} className="space-y-5">
+              {/* File CSV Upload box */}
+              <div>
+                <label className="text-xs font-bold text-gray-700 uppercase block mb-1.5">
+                  1. Unggah File CSV (Opsional)
+                </label>
+                <div className="relative border-2 border-dashed border-gray-200 hover:border-indigo-400 bg-gray-50/50 hover:bg-indigo-50/30 rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer transition-colors text-center">
+                  <input
+                    type="file"
+                    accept=".csv,text/csv,text/plain"
+                    onChange={handleCsvFileUpload}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                  />
+                  <div className="h-10 w-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-1">
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <p className="text-xs font-bold text-gray-700">Pilih atau Seret File .CSV di sini</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">Format: username,password (atau cukup daftar username per baris)</p>
+                </div>
+              </div>
+
+              {/* Text Input / Paste area */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-gray-700 uppercase">
+                    2. Atau Tempel Data Pemilih (Teks / CSV)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setBulkInput("siswa_7a_01,pass123\nsiswa_7a_02,pass123\nsiswa_7a_03,pass123")}
+                    className="text-[11px] font-bold text-indigo-600 hover:underline cursor-pointer"
+                  >
+                    Contoh Format
+                  </button>
+                </div>
+                <textarea
+                  rows={6}
+                  required
+                  value={bulkInput}
+                  onChange={(e) => setBulkInput(e.target.value)}
+                  placeholder={`Contoh format:\nsiswa_7a_01,pass123\nsiswa_7a_02,pass456\nsiswa_7a_03 (password otomatis default)`}
+                  className="w-full rounded-2xl border-0 bg-gray-50 px-4 py-3 text-gray-900 font-mono text-xs ring-1 ring-inset ring-gray-200 focus:bg-white focus:ring-2 focus:ring-indigo-600 leading-relaxed"
+                ></textarea>
+                <p className="text-[11px] text-gray-400 mt-1">
+                  * Satu baris per siswa. Jika password tidak ditulis, akan menggunakan password default di bawah.
+                </p>
+              </div>
+
+              {/* Default Password Configuration */}
+              <div>
+                <label className="text-xs font-bold text-gray-700 uppercase block mb-1">
+                  Password Default (Jika tidak dicantumkan di teks)
+                </label>
+                <input
+                  type="text"
+                  value={bulkDefaultPassword}
+                  onChange={(e) => setBulkDefaultPassword(e.target.value)}
+                  placeholder="123456"
+                  className="w-full rounded-2xl border-0 bg-gray-50 px-4 py-3 text-gray-900 ring-1 ring-inset ring-gray-200 focus:bg-white focus:ring-2 focus:ring-indigo-600 text-sm font-medium"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setIsBulkModalOpen(false)}
+                  className="px-5 py-3 rounded-2xl bg-gray-100 text-sm font-bold text-gray-600 hover:bg-gray-200 transition-colors cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-sm font-bold text-white shadow-lg shadow-indigo-200 transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  {submitting ? "Memproses Import..." : "Import Semua Pemilih"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

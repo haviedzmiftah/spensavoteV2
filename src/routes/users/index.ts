@@ -121,7 +121,116 @@ export const userRoutes = new Elysia({ prefix: "/users" })
     }
   )
 
-  // 2. Tambah data pemilih / user baru secara manual (Khusus Admin)
+  // 2. Import Data Pemilih Secara Masal / Batch (Khusus Admin)
+  .post(
+    "/batch",
+    async ({ body, requireAdmin, set }) => {
+      try {
+        await requireAdmin();
+
+        const voterList = body.voters;
+        if (!Array.isArray(voterList) || voterList.length === 0) {
+          set.status = 400;
+          return {
+            success: false,
+            message: "Daftar pemilih tidak boleh kosong",
+          };
+        }
+
+        // Ambil semua username yang sudah ada untuk cek duplikasi
+        const existingUsers = await db.select({ username: users.username }).from(users);
+        const existingUsernameSet = new Set(existingUsers.map((u) => u.username.toLowerCase()));
+
+        const toInsert: Array<{ username: string; password: string; role: "admin" | "voters" }> = [];
+        const duplicates: string[] = [];
+        const seenInBatch = new Set<string>();
+
+        for (const item of voterList) {
+          const username = String(item.username || "").trim();
+          const rawPassword = String(item.password || "").trim();
+          const role = item.role === "admin" ? "admin" : "voters";
+
+          if (!username || !rawPassword) {
+            continue;
+          }
+
+          const lowerUser = username.toLowerCase();
+          if (existingUsernameSet.has(lowerUser) || seenInBatch.has(lowerUser)) {
+            duplicates.push(username);
+            continue;
+          }
+
+          seenInBatch.add(lowerUser);
+          const hashedPassword = await Bun.password.hash(rawPassword, {
+            algorithm: "bcrypt",
+            cost: 10,
+          });
+
+          toInsert.push({
+            username,
+            password: hashedPassword,
+            role,
+          });
+        }
+
+        if (toInsert.length > 0) {
+          // Batch insert ke MySQL
+          await db.insert(users).values(toInsert);
+        }
+
+        set.status = 201;
+        return {
+          success: true,
+          message: `Berhasil mengimpor ${toInsert.length} data pemilih.${
+            duplicates.length > 0 ? ` (${duplicates.length} dilewati karena username duplikat)` : ""
+          }`,
+          insertedCount: toInsert.length,
+          skippedCount: duplicates.length,
+          skippedUsernames: duplicates,
+        };
+      } catch (error: any) {
+        if (error?.message?.includes("Akses ditolak")) {
+          set.status = 403;
+          return {
+            success: false,
+            message: error.message,
+          };
+        }
+        if (error?.message?.includes("Token otentikasi")) {
+          set.status = 401;
+          return {
+            success: false,
+            message: error.message,
+          };
+        }
+
+        set.status = 500;
+        return {
+          success: false,
+          message: "Gagal memproses impor data pemilih masal",
+          error: error?.message,
+        };
+      }
+    },
+    {
+      body: t.Object({
+        voters: t.Array(
+          t.Object({
+            username: t.String({ description: "Username / NIS pemilih" }),
+            password: t.String({ description: "Password pemilih" }),
+            role: t.Optional(t.Union([t.Literal("admin"), t.Literal("voters")])),
+          })
+        ),
+      }),
+      detail: {
+        tags: ["Users"],
+        summary: "Import data pemilih secara masal (Admin)",
+        description: "Menambahkan banyak akun pemilih sekaligus dari array data / CSV.",
+      },
+    }
+  )
+
+  // 3. Tambah data pemilih / user baru secara manual (Khusus Admin)
   .post(
     "/",
     async ({ body, requireAdmin, set }) => {
