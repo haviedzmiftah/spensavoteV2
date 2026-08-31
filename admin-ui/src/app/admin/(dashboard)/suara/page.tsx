@@ -104,7 +104,7 @@ export default function SuaraPage() {
         <div className="flex gap-3">
           <button
             onClick={exportCSV}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-bold text-gray-700 ring-1 ring-inset ring-gray-200 shadow-sm hover:bg-gray-50 transition-all active:scale-[0.98]"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-bold text-gray-700 ring-1 ring-inset ring-gray-200 shadow-sm hover:bg-gray-50 transition-all active:scale-[0.98] cursor-pointer"
           >
             <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />

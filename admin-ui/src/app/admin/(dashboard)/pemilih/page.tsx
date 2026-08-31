@@ -165,7 +165,7 @@ export default function PemilihPage() {
         <div className="flex gap-3">
           <button
             onClick={openAddModal}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-200 hover:bg-indigo-500 hover:shadow-indigo-300 transition-all active:scale-[0.98]"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-200 hover:bg-indigo-500 hover:shadow-indigo-300 transition-all active:scale-[0.98] cursor-pointer"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -250,7 +250,7 @@ export default function PemilihPage() {
             <button
               onClick={loadData}
               disabled={loading}
-              className="inline-flex items-center justify-center p-2.5 rounded-xl bg-white text-gray-600 ring-1 ring-inset ring-gray-200 hover:bg-gray-50"
+              className="inline-flex items-center justify-center p-2.5 rounded-xl bg-white text-gray-600 ring-1 ring-inset ring-gray-200 hover:bg-gray-50 cursor-pointer"
             >
               <svg className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -320,13 +320,13 @@ export default function PemilihPage() {
                         <div className="flex justify-end gap-2">
                           <button
                             onClick={() => openEditModal(user)}
-                            className="rounded-xl px-3 py-1.5 font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-colors"
+                            className="rounded-xl px-3 py-1.5 font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-colors cursor-pointer"
                           >
                             Edit
                           </button>
                           <button
                             onClick={() => handleDelete(user)}
-                            className="rounded-xl px-3 py-1.5 font-bold text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
+                            className="rounded-xl px-3 py-1.5 font-bold text-red-600 bg-red-50 hover:bg-red-100 transition-colors cursor-pointer"
                           >
                             Hapus
                           </button>
@@ -351,7 +351,7 @@ export default function PemilihPage() {
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="p-2 rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                className="p-2 rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors cursor-pointer"
               >
                 ✕
               </button>
@@ -405,14 +405,14 @@ export default function PemilihPage() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-5 py-3 rounded-2xl bg-gray-100 text-sm font-bold text-gray-600 hover:bg-gray-200 transition-colors"
+                  className="px-5 py-3 rounded-2xl bg-gray-100 text-sm font-bold text-gray-600 hover:bg-gray-200 transition-colors cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-3 rounded-2xl bg-indigo-600 text-sm font-bold text-white hover:bg-indigo-500 transition-colors disabled:opacity-50"
+                  className="px-5 py-3 rounded-2xl bg-indigo-600 text-sm font-bold text-white hover:bg-indigo-500 transition-colors disabled:opacity-50 cursor-pointer"
                 >
                   {submitting ? "Menyimpan..." : "Simpan Akun"}
                 </button>

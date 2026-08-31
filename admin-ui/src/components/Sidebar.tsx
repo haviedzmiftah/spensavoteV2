@@ -5,11 +5,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { clearAuthSession } from "@/lib/api";
 
 const navigation = [
-  { name: "Dashboard", href: "/", icon: "home" },
-  { name: "Kandidat", href: "/kandidat", icon: "users" },
-  { name: "Pemilih", href: "/pemilih", icon: "user-check" },
-  { name: "Suara (Real-time)", href: "/suara", icon: "bar-chart-2" },
-  { name: "Pengaturan", href: "/pengaturan", icon: "settings" },
+  { name: "Dashboard", href: "/admin", icon: "home" },
+  { name: "Kandidat", href: "/admin/kandidat", icon: "users" },
+  { name: "Pemilih", href: "/admin/pemilih", icon: "user-check" },
+  { name: "Suara (Real-time)", href: "/admin/suara", icon: "bar-chart-2" },
+  { name: "Pengaturan", href: "/admin/pengaturan", icon: "settings" },
 ];
 
 export default function Sidebar() {
@@ -18,9 +18,10 @@ export default function Sidebar() {
 
   const handleLogout = () => {
     clearAuthSession();
-    router.push("/login");
+    router.push("/admin/login");
     router.refresh();
   };
+
 
   return (
     <div className="flex h-full w-72 flex-col bg-white shadow-[4px_0_24px_rgba(0,0,0,0.02)] border-r border-gray-100 z-10">

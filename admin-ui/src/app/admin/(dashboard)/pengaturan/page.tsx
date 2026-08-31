@@ -128,7 +128,7 @@ export default function PengaturanPage() {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full rounded-2xl border-0 bg-gray-50 px-5 py-3.5 text-gray-900 shadow-inner ring-1 ring-inset ring-gray-200 focus:bg-white focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm transition-all"
+              className="w-full rounded-2xl border-0 bg-gray-50 px-5 py-3.5 text-gray-900 shadow-inner ring-1 ring-inset ring-gray-200 focus:bg-white focus:ring-2 focus:ring-indigo-600 sm:text-sm transition-all"
             />
           </div>
           <div className="space-y-2">
@@ -139,13 +139,13 @@ export default function PengaturanPage() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full rounded-2xl border-0 bg-gray-50 px-5 py-3.5 text-gray-900 shadow-inner ring-1 ring-inset ring-gray-200 focus:bg-white focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm transition-all"
+              className="w-full rounded-2xl border-0 bg-gray-50 px-5 py-3.5 text-gray-900 shadow-inner ring-1 ring-inset ring-gray-200 focus:bg-white focus:ring-2 focus:ring-indigo-600 sm:text-sm transition-all"
             />
           </div>
           <button
             type="submit"
             disabled={updatingPassword}
-            className="rounded-2xl bg-indigo-600 px-6 py-3.5 text-sm font-bold text-white hover:bg-indigo-500 transition-colors disabled:opacity-50"
+            className="rounded-2xl bg-indigo-600 px-6 py-3.5 text-sm font-bold text-white hover:bg-indigo-500 transition-colors disabled:opacity-50 cursor-pointer"
           >
             {updatingPassword ? "Menyimpan..." : "Perbarui Password"}
           </button>
@@ -167,7 +167,7 @@ export default function PengaturanPage() {
             <button
               onClick={handleResetVotes}
               disabled={resettingVotes}
-              className="whitespace-nowrap rounded-2xl bg-white px-5 py-3 text-sm font-bold text-red-600 ring-1 ring-inset ring-red-200 hover:bg-red-50 hover:ring-red-300 transition-colors disabled:opacity-50"
+              className="whitespace-nowrap rounded-2xl bg-white px-5 py-3 text-sm font-bold text-red-600 ring-1 ring-inset ring-red-200 hover:bg-red-50 hover:ring-red-300 transition-colors disabled:opacity-50 cursor-pointer"
             >
               {resettingVotes ? "Mereset..." : "Reset Suara"}
             </button>
@@ -183,7 +183,7 @@ export default function PengaturanPage() {
             <button
               onClick={handleResetFullDatabase}
               disabled={resettingSystem}
-              className="whitespace-nowrap rounded-2xl bg-red-600 px-5 py-3 text-sm font-bold text-white shadow-md hover:bg-red-500 transition-colors disabled:opacity-50"
+              className="whitespace-nowrap rounded-2xl bg-red-600 px-5 py-3 text-sm font-bold text-white shadow-md hover:bg-red-500 transition-colors disabled:opacity-50 cursor-pointer"
             >
               {resettingSystem ? "Mereset..." : "Reset Total"}
             </button>

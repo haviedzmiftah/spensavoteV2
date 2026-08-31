@@ -74,7 +74,7 @@ export default function DashboardPage() {
         <button
           onClick={loadData}
           disabled={loading}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-white border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all shadow-sm active:scale-95 disabled:opacity-50"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-white border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all shadow-sm active:scale-95 disabled:opacity-50 cursor-pointer"
         >
           <svg className={`h-4 w-4 ${loading ? "animate-spin text-indigo-600" : "text-gray-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -141,7 +141,7 @@ export default function DashboardPage() {
                 <h3 className="text-lg font-bold text-gray-800">Perolehan Suara Paslon</h3>
                 <p className="text-xs text-gray-500 font-medium mt-0.5">Ringkasan hasil quick count real-time</p>
               </div>
-              <Link href="/suara" className="text-sm font-bold text-indigo-600 hover:text-indigo-700">
+              <Link href="/admin/suara" className="text-sm font-bold text-indigo-600 hover:text-indigo-700">
                 Detail Monitoring &rarr;
               </Link>
             </div>

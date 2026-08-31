@@ -5,8 +5,11 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/a
 export const TOKEN_KEY = "spensavote_admin_token";
 export const USER_KEY = "spensavote_admin_user";
 
-export function getToken(): string | undefined {
-  return Cookies.get(TOKEN_KEY);
+export const VOTER_TOKEN_KEY = "spensavote_voter_token";
+export const VOTER_USER_KEY = "spensavote_voter_user";
+
+export function getToken(type: "admin" | "voter" = "admin"): string | undefined {
+  return Cookies.get(type === "admin" ? TOKEN_KEY : VOTER_TOKEN_KEY);
 }
 
 export function setAuthSession(token: string, user: any) {
@@ -23,6 +26,20 @@ export function clearAuthSession() {
   }
 }
 
+export function setVoterSession(token: string, user: any) {
+  Cookies.set(VOTER_TOKEN_KEY, token, { expires: 1 });
+  if (typeof window !== "undefined") {
+    localStorage.setItem(VOTER_USER_KEY, JSON.stringify(user));
+  }
+}
+
+export function clearVoterSession() {
+  Cookies.remove(VOTER_TOKEN_KEY);
+  if (typeof window !== "undefined") {
+    localStorage.removeItem(VOTER_USER_KEY);
+  }
+}
+
 export function getStoredUser(): any | null {
   if (typeof window === "undefined") return null;
   const userStr = localStorage.getItem(USER_KEY);
@@ -33,8 +50,19 @@ export function getStoredUser(): any | null {
   }
 }
 
+export function getStoredVoter(): any | null {
+  if (typeof window === "undefined") return null;
+  const userStr = localStorage.getItem(VOTER_USER_KEY);
+  try {
+    return userStr ? JSON.parse(userStr) : null;
+  } catch {
+    return null;
+  }
+}
+
 interface FetchOptions extends RequestInit {
   requiresAuth?: boolean;
+  authType?: "admin" | "voter";
 }
 
 export interface ApiResponse<T = any> {
@@ -51,7 +79,7 @@ export async function apiFetch<T = any>(
   endpoint: string,
   options: FetchOptions = {}
 ): Promise<ApiResponse<T>> {
-  const { requiresAuth = true, headers = {}, ...restOptions } = options;
+  const { requiresAuth = true, authType = "admin", headers = {}, ...restOptions } = options;
 
   const defaultHeaders: Record<string, string> = {
     "Content-Type": "application/json",
@@ -59,7 +87,7 @@ export async function apiFetch<T = any>(
   };
 
   if (requiresAuth) {
-    const token = getToken();
+    const token = getToken(authType);
     if (token) {
       defaultHeaders["Authorization"] = `Bearer ${token}`;
     }
@@ -79,9 +107,16 @@ export async function apiFetch<T = any>(
 
     if (!response.ok) {
       if (response.status === 401 && requiresAuth) {
-        clearAuthSession();
-        if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
-          window.location.href = "/login";
+        if (authType === "admin") {
+          clearAuthSession();
+          if (typeof window !== "undefined" && !window.location.pathname.startsWith("/admin/login")) {
+            window.location.href = "/admin/login";
+          }
+        } else {
+          clearVoterSession();
+          if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+            window.location.href = "/login";
+          }
         }
       }
       return {
@@ -100,3 +135,4 @@ export async function apiFetch<T = any>(
     };
   }
 }
+
