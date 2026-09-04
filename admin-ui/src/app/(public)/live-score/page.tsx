@@ -17,6 +17,7 @@ export default function PublicLiveScorePage() {
   const [candidates, setCandidates] = useState<CandidateCount[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<string>("");
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const colorThemes = [
     { bar: "from-blue-600 to-indigo-600", text: "text-indigo-600", bg: "bg-indigo-50", ring: "ring-indigo-100" },
@@ -35,10 +36,38 @@ export default function PublicLiveScorePage() {
     setLoading(false);
   };
 
+  const toggleFullscreen = async () => {
+    const target = document.documentElement;
+
+    if (!document.fullscreenElement) {
+      try {
+        await target.requestFullscreen();
+      } catch {
+        // Browsers can block fullscreen in some contexts; ignore silently
+      }
+      return;
+    }
+
+    try {
+      await document.exitFullscreen();
+    } catch {
+      // Ignore fullscreen exit errors
+    }
+  };
+
   useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
     loadData();
     const interval = setInterval(loadData, 5000); // 5s realtime polling
-    return () => clearInterval(interval);
+
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      clearInterval(interval);
+    };
   }, []);
 
   const totalVotesCount = candidates.reduce((sum, c) => sum + Number(c.totalVotes || 0), 0);
@@ -68,7 +97,16 @@ export default function PublicLiveScorePage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <button
+              onClick={toggleFullscreen}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white border border-slate-200 shadow-xs text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <svg className="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3" />
+              </svg>
+              <span>{isFullscreen ? "Keluar Fullscreen" : "Fullscreen"}</span>
+            </button>
             <button
               onClick={loadData}
               disabled={loading}
