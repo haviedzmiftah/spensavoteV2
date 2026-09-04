@@ -34,7 +34,7 @@ export default function VoterLoginPage() {
 
     if (response.success && response.token) {
       setVoterSession(response.token, response.user);
-      router.push("/");
+      router.push("/vote");
       router.refresh();
     } else {
       setErrorMessage(response.message || "Gagal masuk. Periksa kembali username atau password Anda.");
