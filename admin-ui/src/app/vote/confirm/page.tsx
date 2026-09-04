@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { apiFetch, getStoredVoter } from "@/lib/api";
+import { apiFetch, clearVoterSession, getStoredVoter } from "@/lib/api";
 
 interface Candidate {
   id: number;
@@ -76,7 +76,14 @@ function ConfirmVoteContent() {
       return;
     }
 
-    setErrorMessage(response.message || "Gagal mengirim suara. Silakan coba lagi.");
+    const message = response.message || "Gagal mengirim suara. Silakan coba lagi.";
+    setErrorMessage(message);
+  };
+
+  const handleExit = () => {
+    clearVoterSession();
+    router.push("/login");
+    router.refresh();
   };
 
   if (loading) {
@@ -172,8 +179,17 @@ function ConfirmVoteContent() {
             </p>
 
             {errorMessage && (
-              <div className="mt-5 rounded-2xl border border-red-200 bg-red-100 px-4 py-3 text-sm font-medium text-red-700">
-                {errorMessage}
+              <div className="mt-5 space-y-3 rounded-2xl border border-red-200 bg-red-100 px-4 py-3 text-sm font-medium text-red-700">
+                <div>{errorMessage}</div>
+                {errorMessage.includes("Voter hanya bisa vote sekali") && (
+                  <button
+                    type="button"
+                    onClick={handleExit}
+                    className="w-full rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-red-500"
+                  >
+                    Keluar
+                  </button>
+                )}
               </div>
             )}
 
